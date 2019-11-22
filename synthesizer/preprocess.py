@@ -14,8 +14,9 @@ def preprocess_librispeech(datasets_root: Path, out_dir: Path, n_processes: int,
                            skip_existing: bool, hparams):
     # Gather the input directories
     dataset_root = datasets_root.joinpath("LibriSpeech")
-    input_dirs = [dataset_root.joinpath("train-clean-100"), 
-                  dataset_root.joinpath("train-clean-360")]
+    #input_dirs = [dataset_root.joinpath("train-clean-100"), 
+    #              dataset_root.joinpath("train-clean-360")]
+    input_dirs = [dataset_root.joinpath('dev-other')]
     print("\n    ".join(map(str, ["Using data from:"] + input_dirs)))
     assert all(input_dir.exists() for input_dir in input_dirs)
     
@@ -29,6 +30,7 @@ def preprocess_librispeech(datasets_root: Path, out_dir: Path, n_processes: int,
 
     # Preprocess the dataset
     speaker_dirs = list(chain.from_iterable(input_dir.glob("*") for input_dir in input_dirs))
+    print('speaker_dirs:',speaker_dirs)
     func = partial(preprocess_speaker, out_dir=out_dir, skip_existing=skip_existing, 
                    hparams=hparams)
     job = Pool(n_processes).imap(func, speaker_dirs)
@@ -195,7 +197,7 @@ def process_utterance(wav: np.ndarray, text: str, out_dir: Path, basename: str,
  
 def embed_utterance(fpaths, encoder_model_fpath):
     if not encoder.is_loaded():
-        encoder.load_model(encoder_model_fpath)
+        encoder.load_model(encoder_model_fpath, "cpu")
 
     # Compute the speaker embedding of the utterance
     wav_fpath, embed_fpath = fpaths

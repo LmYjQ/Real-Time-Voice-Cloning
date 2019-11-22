@@ -28,7 +28,8 @@ def train(run_id: str, clean_data_root: Path, models_dir: Path, umap_every: int,
     # Setup the device on which to run the forward pass and the loss. These can be different, 
     # because the forward pass is faster on the GPU whereas the loss is often (depending on your
     # hyperparameters) faster on the CPU.
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cpu")
     # FIXME: currently, the gradient is None if loss_device is cuda
     loss_device = torch.device("cpu")
     

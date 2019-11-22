@@ -1,4 +1,6 @@
 from multiprocess.pool import ThreadPool
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor   
+import concurrent
 from encoder.params_data import *
 from encoder.config import librispeech_datasets, anglophone_nationalites
 from datetime import datetime
@@ -80,6 +82,7 @@ def _preprocess_speaker_dirs(speaker_dirs, dataset_name, datasets_root, out_dir,
                 with sources_fpath.open("r") as sources_file:
                     existing_fnames = {line.split(",")[0] for line in sources_file}
             except:
+                print('no existing frames')
                 existing_fnames = {}
         else:
             existing_fnames = {}
@@ -91,16 +94,19 @@ def _preprocess_speaker_dirs(speaker_dirs, dataset_name, datasets_root, out_dir,
             out_fname = "_".join(in_fpath.relative_to(speaker_dir).parts)
             out_fname = out_fname.replace(".%s" % extension, ".npy")
             if skip_existing and out_fname in existing_fnames:
+                print('skip existing')
                 continue
                 
             # Load and preprocess the waveform
             wav = audio.preprocess_wav(in_fpath)
             if len(wav) == 0:
+                print('len wav=0')
                 continue
             
             # Create the mel spectrogram, discard those that are too short
             frames = audio.wav_to_mel_spectrogram(wav)
             if len(frames) < partials_n_frames:
+                #print('{} len {}  frames < partials_n_frames {}'.format(in_fpath, len(frames), partials_n_frames))
                 continue
             
             out_fpath = speaker_out_dir.joinpath(out_fname)
@@ -112,8 +118,11 @@ def _preprocess_speaker_dirs(speaker_dirs, dataset_name, datasets_root, out_dir,
     
     # Process the utterances for each speaker
     with ThreadPool(8) as pool:
-        list(tqdm(pool.imap(preprocess_speaker, speaker_dirs), dataset_name, len(speaker_dirs),
-                  unit="speakers"))
+        list(tqdm(pool.imap(preprocess_speaker, speaker_dirs), dataset_name, len(speaker_dirs),unit="speakers"))
+   # for speaker_dir in speaker_dirs:
+   #     print('process:',speaker_dir)
+   #     preprocess_speaker(speaker_dir)
+   #     print('finish:',speaker_dir)
     logger.finalize()
     print("Done preprocessing %s.\n" % dataset_name)
 
@@ -172,4 +181,17 @@ def preprocess_voxceleb2(datasets_root: Path, out_dir: Path, skip_existing=False
     # Preprocess all speakers
     speaker_dirs = list(dataset_root.joinpath("dev", "aac").glob("*"))
     _preprocess_speaker_dirs(speaker_dirs, dataset_name, datasets_root, out_dir, "m4a",
+                             skip_existing, logger)
+
+def preprocess_aishell(datasets_root: Path, out_dir: Path, skip_existing=False):
+    # Initialize the preprocessing
+    dataset_name = "aishell"
+    dataset_root, logger = _init_preprocess_dataset(dataset_name, datasets_root, out_dir)
+    if not dataset_root:
+        return
+    
+    # Get the speaker directories
+    # Preprocess all speakers
+    speaker_dirs = list(dataset_root.joinpath("dev").glob("*"))
+    _preprocess_speaker_dirs(speaker_dirs, dataset_name, datasets_root, out_dir, "wav",
                              skip_existing, logger)
